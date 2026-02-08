@@ -30,7 +30,14 @@ curl -fsSL https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.s
 chmod +x setup-frpc.sh
 ```
 
-#### 方式三：手动下载
+#### 方式三：直接下载 .sh 文件
+```bash
+# 使用 wget 下载（适合没有 curl 的系统）
+wget https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.sh -O setup-frpc.sh
+chmod +x setup-frpc.sh
+```
+
+#### 方式四：手动下载
 如果以上方式都慢，可以直接复制 [setup-frpc.sh](setup-frpc.sh) 内容保存到本地。
 
 ### 2. 运行脚本
