@@ -45,12 +45,23 @@ curl -fsSL https://cdn.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-
 
 ### 2. 运行脚本
 
+下载并自动运行（推荐）：
 ```bash
-# 交互式输入容器名字
-./setup-frpc.sh
+# 国内镜像 - 下载后自动运行
+curl -fsSL https://fastly.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh | bash
 
-# 或直接指定容器名字
-./setup-frpc.sh my_frpc
+# GitHub 官方 - 下载后自动运行
+curl -fsSL https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh | bash
+```
+
+或者先下载再运行：
+```bash
+# 下载脚本
+curl -fsSL https://fastly.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh -o setup-frpc.sh
+chmod +x setup-frpc.sh
+
+# 运行脚本（会交互式询问容器名字）
+./setup-frpc.sh
 ```
 
 ### 3. 编辑配置文件
