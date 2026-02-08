@@ -202,6 +202,18 @@ main() {
         error_exit "容器名字只能包含字母、数字、下划线和横线"
     fi
 
+    # 检查容器名字是否已存在
+    while docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; do
+        warning "容器名字 '$container_name' 已被使用"
+        read -p "请重新输入容器名字: " container_name
+        if [ -z "$container_name" ]; then
+            error_exit "容器名字不能为空"
+        fi
+        if [[ ! "$container_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            error_exit "容器名字只能包含字母、数字、下划线和横线"
+        fi
+    done
+
     echo ""
     info "开始部署 FRP 客户端"
     info "容器名字: $container_name"
