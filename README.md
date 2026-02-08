@@ -24,20 +24,10 @@ curl -fsSL https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/
 chmod +x setup-frpc.sh
 ```
 
-#### 方式二：国内镜像（推荐）
+#### 方式二：Gitee（国内访问更快）
 ```bash
-# 使用 jsdelivr CDN（最快，1.44秒）
-curl -fsSL https://fastly.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh -o setup-frpc.sh
+curl -fsSL https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.sh -o setup-frpc.sh
 chmod +x setup-frpc.sh
-```
-
-备用镜像：
-```bash
-# testingcf.jsdelivr.net（1.54秒）
-curl -fsSL https://testingcf.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh -o setup-frpc.sh
-
-# cdn.jsdelivr.net（3.16秒）
-curl -fsSL https://cdn.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh -o setup-frpc.sh
 ```
 
 #### 方式三：手动下载
