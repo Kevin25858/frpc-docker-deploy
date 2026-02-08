@@ -26,9 +26,18 @@ chmod +x setup-frpc.sh
 
 #### 方式二：国内镜像（推荐）
 ```bash
-# 使用 ghproxy 镜像
-curl -fsSL https://ghproxy.com/https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh -o setup-frpc.sh
+# 使用 jsdelivr CDN（最快，1.44秒）
+curl -fsSL https://fastly.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh -o setup-frpc.sh
 chmod +x setup-frpc.sh
+```
+
+备用镜像：
+```bash
+# testingcf.jsdelivr.net（1.54秒）
+curl -fsSL https://testingcf.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh -o setup-frpc.sh
+
+# cdn.jsdelivr.net（3.16秒）
+curl -fsSL https://cdn.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh -o setup-frpc.sh
 ```
 
 #### 方式三：手动下载
@@ -184,8 +193,4 @@ sudo usermod -aG docker $USER
 
 - [FRP 官方文档](https://gofrp.org/)
 - [FRP GitHub](https://github.com/fatedier/frp)
-- [Docker Hub - fatedier/frpc](https://hub.docker.com/r/fatedier/frpc)
-
-## 免责声明
-
-本脚本仅供学习和个人使用，请遵守当地法律法规和服务提供商的使用条款。
+- [Docker Hub - fatedier/frpc]
