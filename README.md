@@ -18,10 +18,21 @@
 
 ### 1. 下载脚本
 
+#### 方式一：GitHub 官方（国际网络）
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/frpc-docker-deploy/main/setup-frpc.sh -o setup-frpc.sh
+curl -fsSL https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh -o setup-frpc.sh
 chmod +x setup-frpc.sh
 ```
+
+#### 方式二：国内镜像（推荐）
+```bash
+# 使用 ghproxy 镜像
+curl -fsSL https://ghproxy.com/https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh -o setup-frpc.sh
+chmod +x setup-frpc.sh
+```
+
+#### 方式三：手动下载
+如果以上方式都慢，可以直接复制 [setup-frpc.sh](setup-frpc.sh) 内容保存到本地。
 
 ### 2. 运行脚本
 
