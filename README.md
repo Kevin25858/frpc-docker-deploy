@@ -18,12 +18,12 @@
 
 #### 方式一：GitHub 官方（国际网络）
 ```bash
-curl -fsSL -o /tmp/setup-frpc.sh https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh && bash /tmp/setup-frpc.sh
+curl -fsSL -o ~/setup-frpc.sh https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh && bash ~/setup-frpc.sh
 ```
 
 #### 方式二：Gitee（国内访问更快）
 ```bash
-curl -fsSL -o /tmp/setup-frpc.sh https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.sh && bash /tmp/setup-frpc.sh
+curl -fsSL -o ~/setup-frpc.sh https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.sh && bash ~/setup-frpc.sh
 ```
 
 #### 方式三：手动下载运行
