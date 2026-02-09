@@ -18,12 +18,12 @@
 
 #### 方式一：GitHub 官方（国际网络）
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh | bash
+curl -fsSL -o /tmp/setup-frpc.sh https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh && bash /tmp/setup-frpc.sh
 ```
 
 #### 方式二：Gitee（国内访问更快）
 ```bash
-curl -fsSL https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.sh | bash
+curl -fsSL -o /tmp/setup-frpc.sh https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.sh && bash /tmp/setup-frpc.sh
 ```
 
 #### 方式三：手动下载运行
@@ -201,4 +201,8 @@ sudo usermod -aG docker $USER
 
 - [FRP 官方文档](https://gofrp.org/)
 - [FRP GitHub](https://github.com/fatedier/frp)
+<<<<<<< HEAD
 - [Docker Hub - fatedier/frpc](https://hub.docker.com/r/fatedier/frpc)
+=======
+- [Docker Hub - fatedier/frpc]
+>>>>>>> 3f1de4a2db39fd5fe0cdb446ba6926d8a6c983f0
