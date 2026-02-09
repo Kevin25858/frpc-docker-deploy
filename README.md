@@ -201,4 +201,4 @@ sudo usermod -aG docker $USER
 
 - [FRP 官方文档](https://gofrp.org/)
 - [FRP GitHub](https://github.com/fatedier/frp)
-- [Docker Hub - fatedier/frpc]
+- [Docker Hub - fatedier/frpc](https://hub.docker.com/r/fatedier/frpc)
