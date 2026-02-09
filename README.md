@@ -7,52 +7,33 @@
 
 ## 功能特性
 
-- 🚀 一键部署 FRP 客户端容器
-- 📝 自动生成配置文件模板
-- 🎨 彩色输出，友好的交互体验
-- 🔧 支持自定义容器名称和镜像版本
-- 🛡️ 完整的错误处理和参数校验
-- 📖 详细的配置注释说明
+- 🚀 **一键部署** - 单条命令完成 FRP 客户端安装，无需手动配置 Docker
+- 📝 **智能配置** - 自动生成带详细注释的 TOML 配置文件，开箱即用
+- 🛡️ **冲突防护** - 自动检测容器名冲突，防止误覆盖现有服务
+- ♻️ **自动恢复** - 容器异常退出自动重启，系统开机自启动保障
+- 🎨 **友好交互** - 全交互命令行输出，部署进度一目了然
+- 🔧 **灵活定制** - 支持自定义镜像版本、仅生成配置、强制覆盖等多种选项
+- 🔒 **安全加固** - 配置权限 600/700，敏感信息保护，自动备份机制
+- ✅ **配置检查** - 启动前检查占位符，防止用无效配置启动
+- 📋 **日志持久化** - 日志保存到宿主机，容器删除后仍可查看
+- 🏥 **健康检查** - 内置容器健康状态监控
 
 ## 快速开始
 
-### 1. 下载脚本
+### 下载并运行
 
 #### 方式一：GitHub 官方（国际网络）
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh -o setup-frpc.sh
-chmod +x setup-frpc.sh
+curl -fsSL https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh | bash
 ```
 
 #### 方式二：Gitee（国内访问更快）
 ```bash
-curl -fsSL https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.sh -o setup-frpc.sh
-chmod +x setup-frpc.sh
+curl -fsSL https://gitee.com/kevin25858/frpc-docker-deploy/raw/main/setup-frpc.sh | bash
 ```
 
-#### 方式三：手动下载
-如果以上方式都慢，可以直接复制 [setup-frpc.sh](setup-frpc.sh) 内容保存到本地。
-
-### 2. 运行脚本
-
-下载并自动运行（推荐）：
-```bash
-# 国内镜像 - 下载后自动运行
-curl -fsSL https://fastly.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh | bash
-
-# GitHub 官方 - 下载后自动运行
-curl -fsSL https://raw.githubusercontent.com/kevin25858/frpc-docker-deploy/main/setup-frpc.sh | bash
-```
-
-或者先下载再运行：
-```bash
-# 下载脚本
-curl -fsSL https://fastly.jsdelivr.net/gh/kevin25858/frpc-docker-deploy@main/setup-frpc.sh -o setup-frpc.sh
-chmod +x setup-frpc.sh
-
-# 运行脚本（会交互式询问容器名字）
-./setup-frpc.sh
-```
+#### 方式三：手动下载运行
+如果以上方式都慢，可以手动下载 [setup-frpc.sh](setup-frpc.sh) 后执行 `./setup-frpc.sh`
 
 ### 3. 编辑配置文件
 
@@ -60,17 +41,23 @@ chmod +x setup-frpc.sh
 nano /opt/frpc/my_frpc.toml
 ```
 
+> 💡 **提示**：配置文件可直接从 FRP 服务商处复制粘贴替换，无需逐行编辑
+
 根据实际情况修改：
 - `serverAddr` - FRP 服务器地址
 - `serverPort` - FRP 服务器端口
 - `user` - 用户认证令牌
 - `proxies` 部分的代理配置
 
+> ⚠️ **安全提示**：脚本会自动将配置文件权限设为 600（仅所有者可读写），防止敏感信息泄露
+
 ### 4. 重启容器生效
 
 ```bash
 docker restart my_frpc
 ```
+
+> ✅ **配置检查**：脚本启动前会自动检查配置是否包含未修改的占位符，避免连接失败
 
 ## 使用方法
 
@@ -87,8 +74,10 @@ docker restart my_frpc
 | `-h, --help` | 显示帮助信息 |
 | `-v, --version` | 显示版本信息 |
 | `-c, --config` | 仅创建配置文件，不启动容器 |
-| `-f, --force` | 强制重新创建配置文件（覆盖已有配置） |
+| `-f, --force` | 强制重新创建配置文件（覆盖前自动备份） |
 | `-i, --image IMAGE` | 指定 FRP 镜像（默认: fatedier/frpc:v0.61.1） |
+
+> 💾 **备份机制**：使用 `-f` 强制覆盖时，原配置会自动备份到 `.backup.时间戳` 文件
 
 ### 使用示例
 
@@ -148,6 +137,9 @@ transport.useCompression = true
 # 查看容器日志
 docker logs -f <容器名字>
 
+# 查看持久化日志文件
+ls /opt/frpc/logs/<容器名字>/
+
 # 停止容器
 docker stop <容器名字>
 
@@ -159,7 +151,28 @@ docker restart <容器名字>
 
 # 删除容器
 docker rm -f <容器名字>
+
+# 查看容器健康状态
+docker inspect -f '{{.State.Health.Status}}' <容器名字>
 ```
+
+## 目录结构
+
+```
+/opt/frpc/
+├── <容器名>.toml          # 配置文件（权限 600）
+├── <容器名>.toml.backup.*  # 自动备份的配置文件
+└── logs/
+    └── <容器名>/          # 持久化日志目录（权限 700）
+        └── frpc.log
+```
+
+## 安全特性
+
+- **文件权限控制**：配置目录 700，配置文件 600，防止其他用户读取敏感信息
+- **自动备份**：使用 `--force` 覆盖配置前自动备份原文件
+- **配置验证**：启动前检查占位符是否已修改，避免无效配置启动
+- **容器健康检查**：内置健康检查机制，自动监控 frpc 进程状态
 
 ## 系统要求
 
