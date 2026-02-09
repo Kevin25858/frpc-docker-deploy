@@ -84,6 +84,48 @@ check_docker() {
     fi
 }
 
+# 备份配置文件
+backup_config() {
+    local config_file="$1"
+    if [ -f "$config_file" ]; then
+        local backup_file="${config_file}.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$config_file" "$backup_file"
+        chmod 600 "$backup_file"
+        info "已备份原配置到: $backup_file"
+    fi
+}
+
+# 检查配置文件是否包含未修改的占位符
+check_config_placeholders() {
+    local config_file="$1"
+    local has_placeholder=false
+    local placeholders=""
+
+    if grep -q "your-server-address" "$config_file"; then
+        has_placeholder=true
+        placeholders="${placeholders}\n  - serverAddr (服务器地址)"
+    fi
+    if grep -q "your-user-token" "$config_file"; then
+        has_placeholder=true
+        placeholders="${placeholders}\n  - user (认证令牌)"
+    fi
+    if grep -q "your-proxy-name" "$config_file"; then
+        has_placeholder=true
+        placeholders="${placeholders}\n  - proxies.name (代理名称)"
+    fi
+
+    if [ "$has_placeholder" = "true" ]; then
+        echo ""
+        warning "配置文件包含未修改的占位符:"
+        echo -e "$placeholders"
+        echo ""
+        info "请编辑配置文件后重新运行脚本"
+        info "编辑命令: nano $config_file"
+        return 1
+    fi
+    return 0
+}
+
 # 创建配置文件
 create_config() {
     local config_file="$1"
@@ -92,6 +134,11 @@ create_config() {
     if [ -f "$config_file" ] && [ "$force" != "true" ]; then
         warning "配置文件已存在: $config_file"
         return 0
+    fi
+
+    # 备份原配置（如果存在）
+    if [ -f "$config_file" ] && [ "$force" = "true" ]; then
+        backup_config "$config_file"
     fi
 
     cat > "$config_file" << 'EOF'
@@ -139,6 +186,7 @@ transport.useCompression = true
 # 如需添加更多代理，复制上面的 [[proxies]] 部分并修改
 EOF
 
+    chmod 600 "$config_file"
     success "创建配置文件: $config_file"
     if [ "$force" = "true" ]; then
         info "已强制覆盖原有配置"
@@ -197,9 +245,9 @@ main() {
         fi
     fi
 
-    # 验证容器名字（只允许字母、数字、下划线、横线）
-    if [[ ! "$container_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-        error_exit "容器名字只能包含字母、数字、下划线和横线"
+    # 验证容器名字（必须以字母开头，允许字母、数字、下划线、横线）
+    if [[ ! "$container_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        error_exit "容器名字必须以字母开头，只能包含字母、数字、下划线和横线"
     fi
 
     # 检查容器名字是否已存在
@@ -209,8 +257,8 @@ main() {
         if [ -z "$container_name" ]; then
             error_exit "容器名字不能为空"
         fi
-        if [[ ! "$container_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-            error_exit "容器名字只能包含字母、数字、下划线和横线"
+        if [[ ! "$container_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+            error_exit "容器名字必须以字母开头，只能包含字母、数字、下划线和横线"
         fi
     done
 
@@ -224,9 +272,16 @@ main() {
     check_docker
     success "Docker 检查通过"
 
-    # 创建配置目录
+    # 创建配置目录和日志目录
     mkdir -p "$CONFIG_DIR"
+    chmod 700 "$CONFIG_DIR"
     success "创建配置目录: $CONFIG_DIR"
+
+    # 创建日志目录
+    local log_dir="$CONFIG_DIR/logs/$container_name"
+    mkdir -p "$log_dir"
+    chmod 700 "$log_dir"
+    success "创建日志目录: $log_dir"
 
     # 配置文件路径
     config_file="$CONFIG_DIR/${container_name}.toml"
@@ -241,6 +296,11 @@ main() {
         info "配置文件位置: $config_file"
         info "请编辑配置文件后，再次运行脚本启动容器"
         exit 0
+    fi
+
+    # 检查配置文件是否包含占位符
+    if ! check_config_placeholders "$config_file"; then
+        exit 1
     fi
 
     # 拉取镜像
@@ -263,12 +323,24 @@ main() {
         --network host \
         --restart unless-stopped \
         -v "$config_file:/etc/frp/frpc.toml:ro" \
+        -v "$log_dir:/var/log/frp" \
+        --health-cmd="pgrep frpc || exit 1" \
+        --health-interval=30s \
+        --health-timeout=10s \
+        --health-retries=3 \
         "$image" \
         -c /etc/frp/frpc.toml; then
         success "容器启动成功"
     else
         error_exit "容器启动失败"
     fi
+
+    # 等待容器启动完成
+    sleep 2
+    local container_status
+    container_status=$(docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null || echo 'unknown')
+    local health_status
+    health_status=$(docker inspect -f '{{.State.Health.Status}}' "$container_name" 2>/dev/null || echo 'N/A')
 
     # 显示完成信息
     echo ""
@@ -279,16 +351,18 @@ main() {
     info "容器信息:"
     echo "  容器名字: $container_name"
     echo "  配置文件: $config_file"
-    echo "  容器状态: $(docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null || echo 'unknown')"
+    echo "  日志目录: $log_dir"
+    echo "  容器状态: $container_status"
+    echo "  健康状态: $health_status"
     echo ""
     info "常用命令:"
     echo "  查看日志: docker logs -f $container_name"
+    echo "  查看日志文件: ls $log_dir"
     echo "  停止容器: docker stop $container_name"
     echo "  启动容器: docker start $container_name"
     echo "  重启容器: docker restart $container_name"
     echo "  删除容器: docker rm -f $container_name"
     echo ""
-    warning "如果这是首次部署，请务必编辑配置文件后再重启容器！"
     info "编辑命令: nano $config_file"
     echo ""
 }
