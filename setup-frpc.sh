@@ -20,6 +20,7 @@ VERSION="1.0.0"
 # 默认配置
 DEFAULT_IMAGE="fatedier/frpc:v0.61.1"
 CONFIG_DIR="/opt/frpc"
+PENDING_FILE="$CONFIG_DIR/.pending_setup"
 
 # 显示帮助信息
 show_help() {
@@ -220,7 +221,7 @@ process_config_file() {
     local config_format
     config_format=$(detect_config_format "$user_config_file")
 
-    info "检测到配置文件格式: $config_format"
+    info "检测到配置文件格式: $config_format" >&2
 
     case "$config_format" in
         "toml")
@@ -486,17 +487,45 @@ main() {
         esac
     done
 
-    # 如果没有指定容器名字，交互式询问
+    # 如果没有指定容器名字，检查是否有未完成的配置
     if [ -z "$container_name" ]; then
-        read -p "请输入容器名字: " container_name
+        # 检查是否存在未完成的配置
+        if [ -f "$PENDING_FILE" ]; then
+            local pending_name
+            pending_name=$(cat "$PENDING_FILE" 2>/dev/null)
+            if [ -n "$pending_name" ]; then
+                local pending_config="$CONFIG_DIR/${pending_name}.toml"
+                # 检查配置文件是否存在且仍包含占位符
+                if [ -f "$pending_config" ]; then
+                    info "检测到未完成的配置项目: $pending_name"
+                    read -p "是否继续配置该容器? [Y/n]: " continue_choice
+                    continue_choice=${continue_choice:-Y}
+                    if [[ "$continue_choice" =~ ^[Yy] ]]; then
+                        container_name="$pending_name"
+                        info "自动使用容器名字: $container_name"
+                    else
+                        read -p "请输入容器名字: " container_name
+                    fi
+                else
+                    # 配置文件不存在，删除 pending 文件
+                    rm -f "$PENDING_FILE"
+                    read -p "请输入容器名字: " container_name
+                fi
+            else
+                read -p "请输入容器名字: " container_name
+            fi
+        else
+            read -p "请输入容器名字: " container_name
+        fi
+        
         if [ -z "$container_name" ]; then
             error_exit "容器名字不能为空"
         fi
     fi
 
-    # 验证容器名字（必须以字母开头，允许字母、数字、下划线、横线）
-    if [[ ! "$container_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
-        error_exit "容器名字必须以字母开头，只能包含字母、数字、下划线和横线"
+    # 验证容器名字（允许字母或数字开头，可包含字母、数字、下划线、横线）
+    if [[ ! "$container_name" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
+        error_exit "容器名字必须以字母或数字开头，只能包含字母、数字、下划线、横线和圆点"
     fi
 
     # 检查容器名字是否已存在
@@ -506,8 +535,8 @@ main() {
         if [ -z "$container_name" ]; then
             error_exit "容器名字不能为空"
         fi
-        if [[ ! "$container_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
-            error_exit "容器名字必须以字母开头，只能包含字母、数字、下划线和横线"
+        if [[ ! "$container_name" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
+            error_exit "容器名字必须以字母或数字开头，只能包含字母、数字、下划线、横线和圆点"
         fi
     done
 
@@ -537,6 +566,10 @@ main() {
 
     # 创建配置文件
     create_config "$config_file" "$force"
+    
+    # 保存未完成的配置项目
+    echo "$container_name" > "$PENDING_FILE"
+    chmod 600 "$PENDING_FILE"
 
     # 如果仅创建配置，到此结束
     if [ "$only_config" = "true" ]; then
@@ -584,6 +617,8 @@ main() {
         "$image" \
         -c /etc/frp/frpc.toml; then
         success "容器启动成功"
+        # 清除未完成配置记录
+        rm -f "$PENDING_FILE"
     else
         error_exit "容器启动失败"
     fi
