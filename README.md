@@ -11,6 +11,8 @@
 - 容器冲突检测、自动重启
 - 配置备份、日志持久化
 - 健康检查、自定义镜像
+- INI 格式自动转换为 TOML
+- 未完成配置自动检测
 
 ## 快速开始
 
@@ -29,10 +31,10 @@ curl -fsSL -o ~/setup-frpc.sh https://gitee.com/kevin25858/frpc-docker-deploy/ra
 #### 方式三：手动下载运行
 如果以上方式都慢，可以手动下载 [setup-frpc.sh](setup-frpc.sh) 后执行 `./setup-frpc.sh`
 
-### 3. 编辑配置文件
+### 编辑配置文件
 
 ```bash
-nano /opt/frpc/my_frpc.toml
+nano /opt/frpc/<容器名字>.toml
 ```
 
 > 💡 **提示**：配置文件可直接从 FRP 服务商处复制粘贴替换，无需逐行编辑
@@ -45,11 +47,13 @@ nano /opt/frpc/my_frpc.toml
 
 > ⚠️ **安全提示**：脚本会自动将配置文件权限设为 600（仅所有者可读写），防止敏感信息泄露
 
-### 4. 重启容器生效
+### 再次运行脚本启动容器
 
 ```bash
-docker restart my_frpc
+./setup-frpc.sh
 ```
+
+脚本会自动检测到未完成的配置项目，无需再次输入容器名字。
 
 > ✅ **配置检查**：脚本启动前会自动检查配置是否包含未修改的占位符，避免连接失败
 
@@ -125,6 +129,23 @@ transport.useEncryption = true
 transport.useCompression = true
 ```
 
+### INI 格式支持
+
+脚本支持 INI 格式的旧版配置文件，会自动转换为 TOML 格式：
+
+```ini
+[common]
+server_addr = "your-server-address.com"
+server_port = 7000
+token = "your-user-token"
+
+[my_proxy]
+type = tcp
+local_ip = 127.0.0.1
+local_port = 25565
+remote_port = 9000
+```
+
 ## 常用命令
 
 ```bash
@@ -154,10 +175,12 @@ docker inspect -f '{{.State.Health.Status}}' <容器名字>
 
 ```
 /opt/frpc/
-├── <容器名>.toml          # 配置文件（权限 600）
+├── <容器名>.toml           # 配置文件（权限 600）
 ├── <容器名>.toml.backup.*  # 自动备份的配置文件
+├── <容器名>.toml.original  # 原始 INI 配置（转换后保留）
+├── .pending_setup          # 未完成配置记录
 └── logs/
-    └── <容器名>/          # 持久化日志目录（权限 700）
+    └── <容器名>/           # 持久化日志目录（权限 700）
         └── frpc.log
 ```
 
@@ -201,8 +224,4 @@ sudo usermod -aG docker $USER
 
 - [FRP 官方文档](https://gofrp.org/)
 - [FRP GitHub](https://github.com/fatedier/frp)
-<<<<<<< HEAD
 - [Docker Hub - fatedier/frpc](https://hub.docker.com/r/fatedier/frpc)
-=======
-- [Docker Hub - fatedier/frpc]
->>>>>>> 3f1de4a2db39fd5fe0cdb446ba6926d8a6c983f0
