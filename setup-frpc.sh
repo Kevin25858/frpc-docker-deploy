@@ -607,7 +607,7 @@ main() {
     if docker run -d \
         --name "$container_name" \
         --network host \
-        --restart unless-stopped \
+        --restart always \
         -v "$final_config_file:/etc/frp/frpc.toml:ro" \
         -v "$log_dir:/var/log/frp" \
         --health-cmd="pgrep frpc || exit 1" \
