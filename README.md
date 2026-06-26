@@ -3,7 +3,7 @@
 一个简单易用的 FRP 客户端 Docker 一键部署脚本。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/kevin25858/frpc-docker-deploy)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/kevin25858/frpc-docker-deploy)
 
 ## 功能特性
 
@@ -11,7 +11,7 @@
 - 容器冲突检测、自动重启
 - 配置备份、日志持久化
 - 健康检查、自定义镜像
-- INI 格式自动转换为 TOML
+- 自动获取最新 frp 版本，支持指定版本
 - 未完成配置自动检测
 
 ## 快速开始
@@ -73,7 +73,8 @@ nano /opt/frpc/<容器名字>.toml
 | `-v, --version` | 显示版本信息 |
 | `-c, --config` | 仅创建配置文件，不启动容器 |
 | `-f, --force` | 强制重新创建配置文件（覆盖前自动备份） |
-| `-i, --image IMAGE` | 指定 FRP 镜像（默认: fatedier/frpc:v0.61.1） |
+| `-i, --image IMAGE` | 指定完整镜像名称（覆盖 -r） |
+| `-r, --release VERSION` | 指定 frp 版本（默认: 自动获取最新版） |
 
 > 💾 **备份机制**：使用 `-f` 强制覆盖时，原配置会自动备份到 `.backup.时间戳` 文件
 
@@ -91,6 +92,9 @@ nano /opt/frpc/<容器名字>.toml
 
 # 强制覆盖配置文件
 ./setup-frpc.sh -f my_frpc
+
+# 指定 frp 版本
+./setup-frpc.sh -r v0.61.1 my_frpc
 
 # 使用最新版镜像
 ./setup-frpc.sh -i fatedier/frpc:latest my_frpc
@@ -129,23 +133,6 @@ transport.useEncryption = true
 transport.useCompression = true
 ```
 
-### INI 格式支持
-
-脚本支持 INI 格式的旧版配置文件，会自动转换为 TOML 格式：
-
-```ini
-[common]
-server_addr = "your-server-address.com"
-server_port = 7000
-token = "your-user-token"
-
-[my_proxy]
-type = tcp
-local_ip = 127.0.0.1
-local_port = 25565
-remote_port = 9000
-```
-
 ## 常用命令
 
 ```bash
@@ -177,7 +164,6 @@ docker inspect -f '{{.State.Health.Status}}' <容器名字>
 /opt/frpc/
 ├── <容器名>.toml           # 配置文件（权限 600）
 ├── <容器名>.toml.backup.*  # 自动备份的配置文件
-├── <容器名>.toml.original  # 原始 INI 配置（转换后保留）
 ├── .pending_setup          # 未完成配置记录
 └── logs/
     └── <容器名>/           # 持久化日志目录（权限 700）
