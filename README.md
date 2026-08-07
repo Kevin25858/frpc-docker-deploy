@@ -13,6 +13,7 @@
 - 健康检查、自定义镜像
 - 自动获取最新 frp 版本，支持指定版本
 - 未完成配置自动检测
+- 统一命名前缀（容器 `FRPC-*`、配置 `frpc-*.toml`），与 frp-console 工具兼容
 
 ## 快速开始
 
@@ -37,6 +38,10 @@ curl -fsSL -o ~/setup-frpc.sh https://gitee.com/kevin25858/frpc-docker-deploy/ra
 nano /opt/frpc/<容器名字>.toml
 ```
 
+> **命名规则**：脚本会自动为容器加 `FRPC-` 前缀、为配置文件加 `frpc-` 前缀。
+> 例：输入 `my_frpc` → 容器 `FRPC-my_frpc`，配置文件 `frpc-my_frpc.toml`。
+> 配置文件与容器属主默认为 `1000:1000`（frp-console web 容器 `appuser`），可直接被 frp-console 工具管理。
+
 > **提示**：配置文件可直接从 FRP 服务商处复制粘贴替换，无需逐行编辑
 
 根据实际情况修改：
@@ -45,7 +50,7 @@ nano /opt/frpc/<容器名字>.toml
 - `user` - 用户认证令牌
 - `proxies` 部分的代理配置
 
-> **安全提示**：脚本会自动将配置文件权限设为 600（仅所有者可读写），防止敏感信息泄露
+> **安全提示**：脚本会自动将配置文件权限设为 600（仅所有者可读写），防止敏感信息泄露。配置目录与文件属主为 `1000:1000`（frp-console web 容器 appuser），因此生成的容器可直接被 frp-console 识别和管理；frpc 容器内以 root 运行，读取无碍。
 
 ### 再次运行脚本启动容器
 
@@ -84,10 +89,10 @@ nano /opt/frpc/<容器名字>.toml
 # 交互式输入容器名字
 ./setup-frpc.sh
 
-# 指定容器名字
+# 指定容器名字（创建容器 FRPC-my_frpc）
 ./setup-frpc.sh my_frpc
 
-# 仅创建配置文件
+# 仅创建配置文件（frpc-my_frpc.toml）
 ./setup-frpc.sh -c my_frpc
 
 # 强制覆盖配置文件
@@ -135,44 +140,46 @@ transport.useCompression = true
 
 ## 常用命令
 
+> 以下 `<容器名>` 均为**带前缀的完整名**，如 `FRPC-my_frpc`
+
 ```bash
 # 查看容器日志
-docker logs -f <容器名字>
+docker logs -f FRPC-my_frpc
 
 # 查看持久化日志文件
-ls /opt/frpc/logs/<容器名字>/
+ls /opt/frpc/logs/my_frpc/
 
 # 停止容器
-docker stop <容器名字>
+docker stop FRPC-my_frpc
 
 # 启动容器
-docker start <容器名字>
+docker start FRPC-my_frpc
 
 # 重启容器
-docker restart <容器名字>
+docker restart FRPC-my_frpc
 
 # 删除容器
-docker rm -f <容器名字>
+docker rm -f FRPC-my_frpc
 
 # 查看容器健康状态
-docker inspect -f '{{.State.Health.Status}}' <容器名字>
+docker inspect -f '{{.State.Health.Status}}' FRPC-my_frpc
 ```
 
 ## 目录结构
 
 ```
 /opt/frpc/
-├── <容器名>.toml           # 配置文件（权限 600）
-├── <容器名>.toml.backup.*  # 自动备份的配置文件
+├── frpc-<容器名>.toml       # 配置文件（权限 600，属主 1000:1000）
+├── frpc-<容器名>.toml.backup.*  # 自动备份的配置文件
 ├── .pending_setup          # 未完成配置记录
 └── logs/
-    └── <容器名>/           # 持久化日志目录（权限 700）
+    └── <容器名>/           # 持久化日志目录
         └── frpc.log
 ```
 
 ## 安全特性
 
-- **文件权限控制**：配置目录 700，配置文件 600，防止其他用户读取敏感信息
+- **文件权限控制**：配置文件 600，仅所有者可读写；属主为容器内 `appuser`(1000)，防止其他用户读取敏感信息
 - **自动备份**：使用 `--force` 覆盖配置前自动备份原文件
 - **配置验证**：启动前检查占位符是否已修改，避免无效配置启动
 - **容器健康检查**：内置健康检查机制，自动监控 frpc 进程状态

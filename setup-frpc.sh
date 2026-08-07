@@ -15,13 +15,20 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 版本信息
-VERSION="2.0.0"
+VERSION="2.1.0"
 
 # 默认配置
 FALLBACK_VERSION="v0.61.1"
 DEFAULT_IMAGE="fatedier/frpc:${FALLBACK_VERSION}"
 CONFIG_DIR="/opt/frpc"
 PENDING_FILE="$CONFIG_DIR/.pending_setup"
+
+# 命名前缀（与 frp-console 工具一致，便于统一识别）
+# 容器名 = FRPC-{名称}，配置文件名 = frpc-{名称}.toml
+CONTAINER_PREFIX="FRPC-"
+CONFIG_PREFIX="frpc-"
+# 配置目录属主（frp-console web 容器内 appuser 的 UID:GID）
+CONFIG_OWNER="1000:1000"
 
 # 显示帮助信息
 show_help() {
@@ -30,6 +37,10 @@ FRP 客户端 Docker 部署脚本 v${VERSION}
 
 使用方法:
     ./setup-frpc.sh [选项] [容器名字]
+
+命名规则:
+    容器名自动加前缀 FRPC-，配置文件名自动加前缀 frpc-
+    例: my_frpc  ->  容器 FRPC-my_frpc，配置 frpc-my_frpc.toml
 
 选项:
     -h, --help              显示帮助信息
@@ -41,13 +52,13 @@ FRP 客户端 Docker 部署脚本 v${VERSION}
 
 示例:
     ./setup-frpc.sh                     # 交互式输入容器名字
-    ./setup-frpc.sh my_frpc             # 指定容器名字为 my_frpc
-    ./setup-frpc.sh -c my_frpc          # 仅创建配置文件
+    ./setup-frpc.sh my_frpc             # 创建容器 FRPC-my_frpc
+    ./setup-frpc.sh -c my_frpc          # 仅创建配置文件 frpc-my_frpc.toml
     ./setup-frpc.sh -f my_frpc          # 强制覆盖配置文件
     ./setup-frpc.sh -r v0.61.1 my_frpc  # 指定 frp 版本
     ./setup-frpc.sh -i fatedier/frpc:latest my_frpc
 
-配置文件位置: ${CONFIG_DIR}/<容器名字>.toml
+配置文件位置: ${CONFIG_DIR}/<容器名字>.toml（自动加 frpc- 前缀）
 EOF
 }
 
@@ -182,6 +193,7 @@ transport.useCompression = true                  # 启用压缩
 EOF
 
     chmod 600 "$config_file"
+    # 属主改为容器内 appuser(1000)，让 frp-console web 容器也能读写
     success "创建配置文件: $config_file"
     if [ "$force" = "true" ]; then
         info "已强制覆盖原有配置"
@@ -266,7 +278,7 @@ main() {
             local pending_name
             pending_name=$(cat "$PENDING_FILE" 2>/dev/null)
             if [ -n "$pending_name" ]; then
-                local pending_config="$CONFIG_DIR/${pending_name}.toml"
+                local pending_config="$CONFIG_DIR/${CONFIG_PREFIX}${pending_name}.toml"
                 # 检查配置文件是否存在且仍包含占位符
                 if [ -f "$pending_config" ]; then
                     info "检测到未完成的配置项目: $pending_name"
@@ -300,9 +312,10 @@ main() {
         error_exit "容器名字必须以字母或数字开头，只能包含字母、数字、下划线、横线和圆点"
     fi
 
-    # 检查容器名字是否已存在
-    while docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; do
-        warning "容器名字 '$container_name' 已被使用"
+    # 检查容器名字（带前缀）是否已存在
+    local full_name="${CONTAINER_PREFIX}${container_name}"
+    while docker ps -a --format '{{.Names}}' | grep -q "^${full_name}$"; do
+        warning "容器名字 '${full_name}' 已被使用"
         read -ep "请重新输入容器名字: " container_name
         if [ -z "$container_name" ]; then
             error_exit "容器名字不能为空"
@@ -310,11 +323,12 @@ main() {
         if [[ ! "$container_name" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
             error_exit "容器名字必须以字母或数字开头，只能包含字母、数字、下划线、横线和圆点"
         fi
+        full_name="${CONTAINER_PREFIX}${container_name}"
     done
 
     echo ""
     info "开始部署 FRP 客户端"
-    info "容器名字: $container_name"
+    info "容器名字: ${full_name}"
     info "镜像: $image"
     echo ""
 
@@ -335,23 +349,30 @@ main() {
         fi
     fi
 
-    # 创建配置目录和日志目录
+    # 创建配置目录（属主 1000:1000，供 frp-console web 容器读写）
     mkdir -p "$CONFIG_DIR"
-    chmod 700 "$CONFIG_DIR"
+    chown -R "$CONFIG_OWNER" "$CONFIG_DIR" 2>/dev/null || \
+        warning "无法 chown 配置目录，请手动执行: sudo chown -R ${CONFIG_OWNER} ${CONFIG_DIR}"
+    chmod 755 "$CONFIG_DIR"
     success "创建配置目录: $CONFIG_DIR"
 
     # 创建日志目录
     local log_dir="$CONFIG_DIR/logs/$container_name"
     mkdir -p "$log_dir"
-    chmod 700 "$log_dir"
+    chown -R "$CONFIG_OWNER" "$log_dir" 2>/dev/null || true
+    chmod 755 "$log_dir"
     success "创建日志目录: $log_dir"
 
-    # 配置文件路径
-    config_file="$CONFIG_DIR/${container_name}.toml"
+    # 配置文件路径（带 frpc- 前缀）
+    config_file="$CONFIG_DIR/${CONFIG_PREFIX}${container_name}.toml"
 
     # 创建配置文件
     create_config "$config_file" "$force"
-    
+
+    # 创建后把属主调整为容器 appuser（不再是 root）
+    chown -R "$CONFIG_OWNER" "$config_file" 2>/dev/null || \
+        warning "无法 chown 配置文件，请手动执行: sudo chown ${CONFIG_OWNER} ${config_file}"
+
     # 保存未完成的配置项目
     echo "$container_name" > "$PENDING_FILE"
     chmod 600 "$PENDING_FILE"
@@ -362,6 +383,7 @@ main() {
         success "配置文件创建完成"
         info "配置文件位置: $config_file"
         info "请编辑配置文件后，再次运行脚本启动容器"
+        info "容器名为: ${full_name}"
         exit 0
     fi
 
@@ -382,13 +404,13 @@ main() {
 
     # 停止并删除旧容器（如果存在）
     info "检查并清理旧容器..."
-    docker stop "$container_name" &> /dev/null || true
-    docker rm "$container_name" &> /dev/null || true
+    docker stop "$full_name" &> /dev/null || true
+    docker rm "$full_name" &> /dev/null || true
 
     # 启动新容器
     info "启动容器..."
     if docker run -d \
-        --name "$container_name" \
+        --name "$full_name" \
         --network host \
         --restart always \
         -v "$config_file:/etc/frp/frpc.toml:ro" \
@@ -409,9 +431,9 @@ main() {
     # 等待容器启动完成
     sleep 2
     local container_status
-    container_status=$(docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null || echo 'unknown')
+    container_status=$(docker inspect -f '{{.State.Status}}' "$full_name" 2>/dev/null || echo 'unknown')
     local health_status
-    health_status=$(docker inspect -f '{{.State.Health.Status}}' "$container_name" 2>/dev/null || echo 'N/A')
+    health_status=$(docker inspect -f '{{.State.Health.Status}}' "$full_name" 2>/dev/null || echo 'N/A')
 
     # 显示完成信息
     echo ""
@@ -420,19 +442,19 @@ main() {
     echo "========================================"
     echo ""
     info "容器信息:"
-    echo "  容器名字: $container_name"
+    echo "  容器名字: $full_name"
     echo "  配置文件: $config_file"
     echo "  日志目录: $log_dir"
     echo "  容器状态: $container_status"
     echo "  健康状态: $health_status"
     echo ""
     info "常用命令:"
-    echo "  查看日志: docker logs -f $container_name"
+    echo "  查看日志: docker logs -f $full_name"
     echo "  查看日志文件: ls $log_dir"
-    echo "  停止容器: docker stop $container_name"
-    echo "  启动容器: docker start $container_name"
-    echo "  重启容器: docker restart $container_name"
-    echo "  删除容器: docker rm -f $container_name"
+    echo "  停止容器: docker stop $full_name"
+    echo "  启动容器: docker start $full_name"
+    echo "  重启容器: docker restart $full_name"
+    echo "  删除容器: docker rm -f $full_name"
     echo ""
     info "编辑命令: nano $config_file"
     echo ""
